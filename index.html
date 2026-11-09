@@ -183,15 +183,6 @@
 </head>
 <body>
 
-<div id="debugErr" style="position:fixed;bottom:0;left:0;right:0;background:#c00;color:#fff;font:12px monospace;padding:8px;z-index:999;display:none;white-space:pre-wrap;"></div>
-<script>
-window.addEventListener('error', function(e){
-  var d = document.getElementById('debugErr');
-  d.style.display = 'block';
-  d.textContent = '报错: ' + (e.message || '') + ' @ ' + (e.filename || '') + ':' + (e.lineno || '') + ':' + (e.colno || '');
-});
-</script>
-
 <div class="snow" id="snow" aria-hidden="true"></div>
 
 <div class="scene">
@@ -627,11 +618,6 @@ window.addEventListener('error', function(e){
 
   function setup(){
     var w = stage.clientWidth;
-    var diag = document.getElementById('debugErr');
-    if (diag){
-      diag.style.display = 'block'; diag.style.background = '#333';
-      diag.textContent = 'diag: stage=' + w + 'x' + stage.clientHeight + ' dpr=' + (window.devicePixelRatio || 1) + ' ua=' + navigator.userAgent.slice(0, 60);
-    }
     if (!w || w === lastW) return;
     lastW = w;
     var dpr = Math.min(window.devicePixelRatio || 1, 2);
