@@ -32,7 +32,7 @@
   .scene{ position:relative; z-index:1; width:100%; max-width:500px; display:flex; flex-direction:column; align-items:center; text-align:center; }
 
   /* snow */
-  .snow{ position:fixed; inset:0; pointer-events:none; z-index:0; }
+  .snow{ position:fixed; top:0;right:0;bottom:0;left:0; pointer-events:none; z-index:0; }
   .flake{ position:absolute; top:-10%; color:#fff; text-shadow:0 0 3px rgba(63,43,28,.35); animation:fall linear infinite; }
   @keyframes fall{ to{ transform:translateY(115vh); } }
 
@@ -46,16 +46,16 @@
   .stage{
     position:relative;
     width:min(96vw, 480px);
-    aspect-ratio:1000 / 1250;
+    height:0; padding-top:125%; /* 1250/1000, aspect-ratio fallback for iOS<15 */
     margin-bottom:16px;
   }
   .stage::before{
-    content:''; position:absolute; inset:0; z-index:0;
+    content:''; position:absolute; top:0;right:0;bottom:0;left:0; z-index:0;
     background:#e9a25a;
     -webkit-mask-image: radial-gradient(ellipse 85% 85% at 50% 50%, #000 72%, transparent 100%);
             mask-image: radial-gradient(ellipse 85% 85% at 50% 50%, #000 72%, transparent 100%);
   }
-  .stage canvas{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+  .stage canvas{ position:absolute; top:0;right:0;bottom:0;left:0; width:100%; height:100%; pointer-events:none; }
   #treeCanvas{ z-index:1; }
   #lightCanvas{ z-index:2; }
   @media (min-width:700px){
@@ -70,18 +70,18 @@
   }
   .gift.floor{ transform:translate(-50%,-100%); }
   .gift.hang { transform:translate(-50%,0); z-index:4; }
-  .g-sway{ position:absolute; inset:0; transform-origin:50% 0; }
+  .g-sway{ position:absolute; top:0;right:0;bottom:0;left:0; transform-origin:50% 0; }
   .gift.hang .g-sway{ animation:sway 3.8s ease-in-out infinite; }
   .gift.hang:nth-of-type(2n) .g-sway{ animation-duration:4.4s; animation-delay:-1.2s; }
   @keyframes sway{ 0%,100%{ transform:rotate(3deg); } 50%{ transform:rotate(-3deg); } }
 
   .g-inner{
-    position:absolute; inset:0;
+    position:absolute; top:0;right:0;bottom:0;left:0;
     transform-origin:50% 92%;
     transition:transform .2s ease, filter .3s ease;
     filter:drop-shadow(0 5px 4px rgba(60,20,0,.45));
   }
-  .g-inner svg{ position:absolute; inset:0; width:100%; height:100%; overflow:visible; }
+  .g-inner svg{ position:absolute; top:0;right:0;bottom:0;left:0; width:100%; height:100%; overflow:visible; }
   .g-lid{ transform-origin:50% 30%; transition:transform .75s cubic-bezier(.2,.75,.3,1), opacity .75s ease; }
   .g-shadow{
     position:absolute; left:50%; bottom:-7%; width:118%; height:18%;
@@ -128,7 +128,7 @@
 
   /* ---------- Voucher modal ---------- */
   .modal{
-    position:fixed; inset:0; z-index:40;
+    position:fixed; top:0;right:0;bottom:0;left:0; z-index:40;
     display:flex; align-items:center; justify-content:center; padding:20px;
     background:rgba(20,10,4,.55); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px);
     opacity:0; transition:opacity .3s ease;
@@ -178,7 +178,7 @@
   }
   .v-ok:focus-visible{ outline:3px solid var(--gold); outline-offset:3px; }
 
-  #confetti{ position:fixed; inset:0; width:100%; height:100%; pointer-events:none; z-index:50; }
+  #confetti{ position:fixed; top:0;right:0;bottom:0;left:0; width:100%; height:100%; pointer-events:none; z-index:50; }
 </style>
 </head>
 <body>
@@ -724,6 +724,7 @@ window.addEventListener('error', function(e){
     return { body:body, lid:lid, ratio:100 / (H - y0) };
   }
 
+  var giftRatios = [];
   var giftEls = GIFTS.map(function(cfg, i){
     var p = PAPERS[cfg.paper] || PAPERS.kraft;
     var hang = cfg.kind === 'hang';
@@ -735,7 +736,8 @@ window.addEventListener('error', function(e){
     btn.style.left = cfg.x + '%';
     btn.style.top = (hang ? cfg.y : cfg.b) + '%';
     btn.style.width = cfg.w + '%';
-    btn.style.aspectRatio = String(svg.ratio);
+    btn.style.aspectRatio = String(svg.ratio); // modern browsers; sizeGifts() below covers iOS<15
+    giftRatios.push(svg.ratio);
     if (!hang) btn.style.zIndex = String(5 + Math.round(cfg.b));
     btn.innerHTML =
       '<span class="g-sway">' +
@@ -745,6 +747,16 @@ window.addEventListener('error', function(e){
     stage.appendChild(btn);
     return btn;
   });
+
+  function sizeGifts(){
+    var w = stage.clientWidth;
+    if (!w) return;
+    giftEls.forEach(function(btn, i){
+      var pxW = w * (GIFTS[i].w / 100);
+      btn.style.height = (pxW / giftRatios[i]) + 'px';
+    });
+  }
+  sizeGifts();
 
   /* =========================================================
      抽奖逻辑
@@ -878,7 +890,7 @@ window.addEventListener('error', function(e){
 
   setup();
   var rt;
-  window.addEventListener('resize', function(){ clearTimeout(rt); rt = setTimeout(setup, 150); });
+  window.addEventListener('resize', function(){ clearTimeout(rt); rt = setTimeout(function(){ setup(); sizeGifts(); }, 150); });
   requestAnimationFrame(loop);
 })();
 </script>
