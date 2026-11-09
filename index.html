@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>S.PACE CAFE · 圣诞礼物树</title>
+<style>
+  @font-face{ font-family:'Fredoka'; src:url('fredoka.woff2') format('woff2'); font-weight:400 700; font-display:swap; }
+  @font-face{ font-family:'Karla';   src:url('karla.woff2') format('woff2');   font-weight:400 700; font-display:swap; }
+
+  :root{
+    --espresso:#3F2B1C; --cocoa:#7C6752;
+    --red:#C9423F; --red-d:#A3322F;
+    --pine:#2E5C45; --gold:#D8A646; --gold-d:#B6863A;
+    --cream:#FBF4E4;
+    --font-display:'Fredoka','PingFang SC','Microsoft JhengHei','Heiti SC',sans-serif;
+    --font-body:'Karla','PingFang SC','Microsoft JhengHei','Heiti SC',sans-serif;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0; min-height:100vh;
+    background:
+      radial-gradient(circle at 15% 10%, rgba(201,66,63,.20), transparent 42%),
+      radial-gradient(circle at 85% 15%, rgba(46,92,69,.20), transparent 42%),
+      radial-gradient(ellipse at 50% 0%, #fbf0dc 0%, #eed9b3 45%, #d9b98c 100%);
+    color:var(--espresso); font-family:var(--font-body);
+    display:flex; align-items:center; justify-content:center;
+    padding:max(24px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(40px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  .scene{ position:relative; z-index:1; width:100%; max-width:500px; display:flex; flex-direction:column; align-items:center; text-align:center; }
+
+  /* snow */
+  .snow{ position:fixed; inset:0; pointer-events:none; z-index:0; }
+  .flake{ position:absolute; top:-10%; color:#fff; text-shadow:0 0 3px rgba(63,43,28,.35); animation:fall linear infinite; }
+  @keyframes fall{ to{ transform:translateY(115vh); } }
+
+  .brand{ display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+  .brand img{ width:30px; height:30px; }
+  .brand b{ font-family:var(--font-display); font-weight:700; font-size:1.05rem; }
+  .tagline{ font-size:.88rem; color:var(--cocoa); max-width:32ch; margin:2px 0 14px; }
+  .tagline strong{ color:var(--gold-d); }
+
+  /* ---------- Room + tree ---------- */
+  .stage{
+    position:relative;
+    width:min(96vw, 480px);
+    aspect-ratio:1000 / 1250;
+    margin-bottom:16px;
+    background:#e9a25a;
+    -webkit-mask-image: radial-gradient(ellipse 85% 85% at 50% 50%, #000 72%, transparent 100%);
+            mask-image: radial-gradient(ellipse 85% 85% at 50% 50%, #000 72%, transparent 100%);
+  }
+  .stage canvas{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+  #treeCanvas{ z-index:1; }
+  #lightCanvas{ z-index:2; }
+  @media (min-width:700px){
+    .scene{ max-width:560px; }
+    .stage{ width:min(60vw, 560px); }
+  }
+
+  /* ---------- Gifts ---------- */
+  .gift{
+    position:absolute; padding:0; margin:0; border:0; background:none;
+    cursor:pointer; -webkit-tap-highlight-color:transparent; outline:none;
+  }
+  .gift.floor{ transform:translate(-50%,-100%); }
+  .gift.hang { transform:translate(-50%,0); z-index:4; }
+  .g-sway{ position:absolute; inset:0; transform-origin:50% 0; }
+  .gift.hang .g-sway{ animation:sway 3.8s ease-in-out infinite; }
+  .gift.hang:nth-of-type(2n) .g-sway{ animation-duration:4.4s; animation-delay:-1.2s; }
+  @keyframes sway{ 0%,100%{ transform:rotate(3deg); } 50%{ transform:rotate(-3deg); } }
+
+  .g-inner{
+    position:absolute; inset:0;
+    transform-origin:50% 92%;
+    transition:transform .2s ease, filter .3s ease;
+    filter:drop-shadow(0 5px 4px rgba(60,20,0,.45));
+  }
+  .g-inner svg{ position:absolute; inset:0; width:100%; height:100%; overflow:visible; }
+  .g-lid{ transform-origin:50% 30%; transition:transform .75s cubic-bezier(.2,.75,.3,1), opacity .75s ease; }
+  .g-shadow{
+    position:absolute; left:50%; bottom:-7%; width:118%; height:18%;
+    transform:translateX(-50%); border-radius:50%;
+    background:radial-gradient(ellipse, rgba(40,15,0,.55), transparent 70%);
+    pointer-events:none;
+  }
+  .g-glow{
+    position:absolute; left:50%; top:38%; width:170%; aspect-ratio:1;
+    transform:translate(-50%,-50%) scale(.2); border-radius:50%;
+    background:radial-gradient(circle, rgba(255,240,180,.95), rgba(255,200,90,.45) 38%, transparent 68%);
+    opacity:0; pointer-events:none; transition:transform .6s ease, opacity .6s ease;
+  }
+
+  .gift:hover .g-inner, .gift:focus-visible .g-inner{ transform:translateY(-4%) scale(1.05); filter:drop-shadow(0 8px 6px rgba(60,20,0,.45)) drop-shadow(0 0 10px rgba(255,220,140,.7)); }
+  .gift.nudge .g-inner{ animation:nudge .8s ease; }
+  .gift.opening .g-inner{ animation:shake .45s ease; }
+  .gift.open .g-lid{ transform:translate(-16%,-95%) rotate(-30deg); opacity:0; }
+  .gift.open .g-glow{ opacity:1; transform:translate(-50%,-50%) scale(1); }
+  .gift.open.settled .g-glow{ opacity:.45; }
+  .gift.dim{ pointer-events:none; }
+  .gift.dim .g-inner{ filter:saturate(.5) brightness(.7) drop-shadow(0 5px 4px rgba(60,20,0,.35)); }
+
+  @keyframes nudge{ 0%,100%{ transform:rotate(0); } 20%{ transform:rotate(-5deg) translateY(-3%); } 40%{ transform:rotate(4deg); } 60%{ transform:rotate(-2deg); } }
+  @keyframes shake{ 0%,100%{ transform:rotate(0) scale(1); } 20%{ transform:rotate(-8deg) scale(1.06); } 40%{ transform:rotate(7deg) scale(1.1); } 60%{ transform:rotate(-6deg) scale(1.1); } 80%{ transform:rotate(4deg) scale(1.08); } }
+
+  @media (prefers-reduced-motion: reduce){
+    .flake{ display:none; }
+    .gift.hang .g-sway, .gift.nudge .g-inner, .gift.opening .g-inner{ animation:none; }
+  }
+
+  .status{ min-height:1.3em; font-size:.88rem; color:var(--cocoa); margin:0 0 10px; }
+  .again-btn{
+    font-family:var(--font-display); font-weight:700; letter-spacing:.04em; font-size:.88rem;
+    color:#fff; background:linear-gradient(180deg, var(--red), var(--red-d));
+    border:none; border-radius:999px; padding:11px 26px; cursor:pointer;
+    box-shadow:0 10px 18px -8px rgba(201,66,63,.6);
+    opacity:0; transform:translateY(6px); pointer-events:none;
+    transition:opacity .3s ease, transform .3s ease;
+  }
+  .again-btn.show{ opacity:1; transform:translateY(0); pointer-events:auto; }
+  .again-btn:focus-visible{ outline:3px solid var(--gold); outline-offset:3px; }
+  .footer-note{ font-size:.74rem; color:#8a7256; margin-top:16px; font-style:italic; }
+
+  /* ---------- Voucher modal ---------- */
+  .modal{
+    position:fixed; inset:0; z-index:40;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+    background:rgba(20,10,4,.55); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px);
+    opacity:0; transition:opacity .3s ease;
+  }
+  .modal[hidden]{ display:none; }
+  .modal.show{ opacity:1; }
+  .voucher{
+    position:relative; width:min(88vw, 330px);
+    background:var(--cream); color:var(--espresso);
+    border-radius:18px; overflow:hidden; text-align:left;
+    box-shadow:0 30px 60px rgba(0,0,0,.5);
+    transform:scale(.6) translateY(30px); transition:transform .45s cubic-bezier(.25,1.45,.4,1);
+  }
+  .modal.show .voucher{ transform:scale(1) translateY(0); }
+  .v-head{
+    display:flex; align-items:center; gap:10px; padding:14px 16px;
+    background:linear-gradient(135deg, #c9423f, #8f1f1f); color:#fff;
+  }
+  .v-head img{ width:32px; height:32px; }
+  .v-head b{ display:block; font-family:var(--font-display); font-size:1rem; }
+  .v-head span{ font-size:.68rem; letter-spacing:.12em; text-transform:uppercase; opacity:.85; }
+  .v-body{ display:flex; gap:12px; align-items:center; padding:16px; }
+  .v-photo{
+    width:72px; height:72px; flex:none; border-radius:14px; overflow:hidden;
+    background:#f1e2c4; display:flex; align-items:center; justify-content:center; font-size:2.4rem;
+    box-shadow:inset 0 0 0 2px rgba(0,0,0,.05);
+  }
+  .v-photo img{ width:100%; height:100%; object-fit:cover; }
+  .v-cn{ font-weight:700; font-size:1.05rem; line-height:1.3; }
+  .v-en{ font-size:.74rem; color:var(--cocoa); margin-top:2px; }
+  .v-badge{
+    display:inline-block; margin-top:7px; font-family:var(--font-display); font-weight:700;
+    font-size:.72rem; color:#fff; background:var(--pine); padding:3px 10px; border-radius:999px;
+  }
+  .v-cut{ position:relative; height:0; border-top:2px dashed #d9c6a3; margin:0 16px; }
+  .v-cut::before, .v-cut::after{
+    content:""; position:absolute; top:-12px; width:22px; height:22px; border-radius:50%;
+    background:#3a2416;
+  }
+  .v-cut::before{ left:-28px; } .v-cut::after{ right:-28px; }
+  .v-foot{ padding:14px 16px 6px; text-align:center; }
+  .v-note{ font-size:.74rem; color:var(--cocoa); margin:6px 0 0; }
+  .v-ok{
+    display:block; width:calc(100% - 32px); margin:12px 16px 16px;
+    font-family:var(--font-display); font-weight:700; font-size:.92rem; color:#fff;
+    background:linear-gradient(180deg, #3e7a5b, #2e5c45); border:0; border-radius:999px; padding:11px; cursor:pointer;
+  }
+  .v-ok:focus-visible{ outline:3px solid var(--gold); outline-offset:3px; }
+
+  #confetti{ position:fixed; inset:0; width:100%; height:100%; pointer-events:none; z-index:50; }
+</style>
+</head>
+<body>
+
+<div class="snow" id="snow" aria-hidden="true"></div>
+
+<div class="scene">
+  <div class="brand">
+    <img src="mascot.png" alt="" onerror="this.remove()">
+    <b>S.PACE CAFE</b>
+  </div>
+  <p class="tagline">树上、树下都是礼物，挑一份属于你的<strong>圣诞惊喜兑换券</strong>！</p>
+
+  <div class="stage" id="stage">
+    <canvas id="treeCanvas" aria-hidden="true"></canvas>
+    <canvas id="lightCanvas" aria-hidden="true"></canvas>
+    <!-- 礼物由脚本生成 -->
+  </div>
+
+  <p class="status" id="status" aria-live="polite">点一个礼物，拆开看看是什么</p>
+  <button class="again-btn" id="again">再抽一次 · Pick Again</button>
+  <p class="footer-note">愿这份小小的惊喜，让你的圣诞多一点甜。</p>
+</div>
+
+<div class="modal" id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="vName">
+  <div class="voucher">
+    <div class="v-head">
+      <img src="mascot.png" alt="" onerror="this.remove()">
+      <div><b>S.PACE CAFE</b><span>Christmas Voucher · 圣诞兑换券</span></div>
+    </div>
+    <div class="v-body">
+      <div class="v-photo" id="vPhoto"></div>
+      <div>
+        <div class="v-cn" id="vName"></div>
+        <div class="v-en" id="vNameEn"></div>
+        <span class="v-badge" id="vBadge"></span>
+      </div>
+    </div>
+    <div class="v-cut"></div>
+    <button class="v-ok" id="vOk">收下啦 · Got it</button>
+  </div>
+</div>
+
+<canvas id="confetti" aria-hidden="true"></canvas>
+
+<script>
+(function(){
+  'use strict';
+
+  /* =========================================================
+     可修改的设置
+     ========================================================= */
+  // weight = 抽中权重（数字越大越容易抽到）
+  var VOUCHERS = [
+    { emoji:'☕', nameCn:'免费咖啡', nameEn:'Free Coffee',       badge:'FREE',    weight:1 },
+    { emoji:'🍲', nameCn:'免费汤',   nameEn:'Free Soup',         badge:'FREE',    weight:1 },
+    { emoji:'🍟', nameCn:'免费薯条', nameEn:'Free Fries',        badge:'FREE',    weight:1 },
+    { emoji:'🏷️', nameCn:'全单5%',  nameEn:'5% Off Total Bill', badge:'5% OFF',  weight:1 },
+    { emoji:'🎟️', nameCn:'RM5 voucher', nameEn:'RM5 Voucher',   badge:'RM5',     weight:1 },
+    { emoji:'🎟️', nameCn:'RM8 voucher', nameEn:'RM8 Voucher',   badge:'RM8',     weight:1 }
+  ];
+  // 礼物位置：x / y / bottom 是相对画面的百分比，w 是宽度百分比，h 是盒子高度比例
+  var GIFTS = [
+    // 挂在树上
+    { kind:'hang',  x:45.5, y:29,   w:8.5, h:84,  paper:'red'   },
+    { kind:'hang',  x:61,   y:35.5, w:8,   h:80,  paper:'gold'  },
+    { kind:'hang',  x:35,   y:47,   w:8.5, h:88,  paper:'kraft' },
+    { kind:'hang',  x:66,   y:53.5, w:8.5, h:82,  paper:'green' },
+    { kind:'hang',  x:50,   y:62,   w:9,   h:86,  paper:'cream' },
+    // 树下（后排）
+    { kind:'floor', x:31,   b:86.5, w:17,  h:78,  paper:'kraft' },
+    { kind:'floor', x:50,   b:85.5, w:15,  h:102, paper:'red'   },
+    { kind:'floor', x:69,   b:86.5, w:18,  h:72,  paper:'kraft' },
+    // 树下（前排）
+    { kind:'floor', x:18,   b:95,   w:21,  h:76,  paper:'cream' },
+    { kind:'floor', x:40,   b:97.5, w:23,  h:70,  paper:'kraft' },
+    { kind:'floor', x:61,   b:97,   w:19,  h:90,  paper:'green' },
+    { kind:'floor', x:82,   b:94.5, w:20,  h:74,  paper:'kraft' }
+  ];
+
+  var PAPERS = {
+    kraft:{ f1:'#d9b07a', f2:'#a97a45', l1:'#e4bd88', l2:'#b48552', top:'#eed3a6', r:'#cf2b2b', rd:'#8c1515' },
+    red:  { f1:'#d23a3a', f2:'#8e1b1d', l1:'#dd4a4a', l2:'#9a2023', top:'#e9706a', r:'#f0cf74', rd:'#a8822a', pattern:'dots',    pc:'#f6dc94' },
+    green:{ f1:'#37795a', f2:'#1c4a33', l1:'#418a66', l2:'#22553b', top:'#5ea67f', r:'#d83a35', rd:'#8d1616' },
+    cream:{ f1:'#fbf3e3', f2:'#d6c5a6', l1:'#fff8ea', l2:'#ddcdaf', top:'#fffaf0', r:'#cf2b2b', rd:'#8c1515', pattern:'stripes', pc:'#d64545' },
+    gold: { f1:'#ecc46c', f2:'#b5852f', l1:'#f3d07e', l2:'#bf8f38', top:'#f8df9e', r:'#b3252b', rd:'#741015' }
+  };
+
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* =========================================================
+     画布：房间 + 圣诞树
+     ========================================================= */
+  var LW = 1000, LH = 1250;           // 逻辑坐标
+  var CX = 500, TOP = 160, BASE = 930, HALF = 335, TIERS = 6;
+
+  function rng(seed){
+    return function(){
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  function halfW(y){
+    var t = (y - TOP) / (BASE - TOP);
+    if (t <= 0) return 4;
+    if (t > 1) t = 1;
+    var base = HALF * Math.pow(t, 0.9);
+    var local = t >= 1 ? 1 : (t * TIERS) % 1;
+    return base * (0.78 + 0.22 * Math.pow(local, 1.5)) + 6;
+  }
+
+  function treePath(ctx, k){
+    ctx.beginPath();
+    ctx.moveTo(CX, TOP - 6);
+    for (var y = TOP; y <= BASE; y += 3) ctx.lineTo(CX + halfW(y) * k, y);
+    ctx.quadraticCurveTo(CX, BASE + 40, CX - halfW(BASE) * k, BASE);
+    for (y = BASE; y >= TOP; y -= 3) ctx.lineTo(CX - halfW(y) * k, y);
+    ctx.closePath();
+  }
+
+  function drawRoom(ctx, s, R){
+    var g;
+    // wall
+    g = ctx.createLinearGradient(0, 0, LW, 0);
+    g.addColorStop(0, '#ffe6b4'); g.addColorStop(.18, '#f8c987'); g.addColorStop(.5, '#eba55f');
+    g.addColorStop(.85, '#c97a3a'); g.addColorStop(1, '#a65c27');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, LW, 1040);
+    g = ctx.createLinearGradient(0, 0, 0, 620);
+    g.addColorStop(0, 'rgba(70,30,8,.5)'); g.addColorStop(1, 'rgba(70,30,8,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, LW, 620);
+
+    // window light + sheer curtain on the left
+    g = ctx.createLinearGradient(0, 0, 190, 0);
+    g.addColorStop(0, 'rgba(255,251,230,.97)'); g.addColorStop(.5, 'rgba(255,240,205,.55)'); g.addColorStop(1, 'rgba(255,232,185,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 190, 1040);
+    for (var i = 0; i < 7; i++){
+      ctx.fillStyle = 'rgba(255,255,255,' + (0.06 + R() * 0.08) + ')';
+      ctx.fillRect(6 + i * 17 + R() * 4, 0, 7 + R() * 5, 1036);
+    }
+
+    // warm bloom behind tree
+    g = ctx.createRadialGradient(520, 560, 30, 520, 560, 540);
+    g.addColorStop(0, 'rgba(255,218,145,.6)'); g.addColorStop(1, 'rgba(255,218,145,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, LW, 1040);
+
+    // soft tree shadow on the wall (light comes from the window on the left)
+    var OFF = 6000;
+    ctx.save();
+    ctx.shadowColor = 'rgba(105,40,8,.42)';
+    ctx.shadowBlur = 46 * s;
+    ctx.shadowOffsetX = (OFF + 170) * s;
+    ctx.shadowOffsetY = 0;
+    ctx.translate(-OFF, 0);
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.moveTo(CX, TOP + 10); ctx.lineTo(CX + 300, 1030); ctx.lineTo(CX - 260, 1030); ctx.closePath(); ctx.fill();
+    ctx.restore();
+
+    // baseboard
+    ctx.fillStyle = '#f2d2a0'; ctx.fillRect(0, 1030, LW, 18);
+    ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fillRect(0, 1030, LW, 2);
+    ctx.fillStyle = 'rgba(80,35,10,.35)'; ctx.fillRect(0, 1046, LW, 2);
+
+    // wooden floor
+    g = ctx.createLinearGradient(0, 1048, 0, LH);
+    g.addColorStop(0, '#80492a'); g.addColorStop(1, '#3a1f0f');
+    ctx.fillStyle = g; ctx.fillRect(0, 1048, LW, LH - 1048);
+    ctx.strokeStyle = 'rgba(30,12,4,.35)'; ctx.lineWidth = 2;
+    for (var px = -400; px <= 1400; px += 90){
+      ctx.beginPath(); ctx.moveTo(px, 1048); ctx.lineTo(CX + (px - CX) * 1.7, LH); ctx.stroke();
+    }
+    g = ctx.createLinearGradient(0, 1048, 0, 1130);
+    g.addColorStop(0, 'rgba(255,190,100,.45)'); g.addColorStop(1, 'rgba(255,190,100,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 1048, LW, 82);
+
+    // fluffy rug
+    ctx.save();
+    ctx.beginPath(); ctx.ellipse(510, 1160, 480, 92, 0, 0, Math.PI * 2);
+    g = ctx.createRadialGradient(510, 1140, 40, 510, 1160, 480);
+    g.addColorStop(0, '#eedcb8'); g.addColorStop(.7, '#d6b98c'); g.addColorStop(1, '#b8946a');
+    ctx.fillStyle = g; ctx.fill();
+    ctx.clip();
+    for (i = 0; i < 1800; i++){
+      ctx.fillStyle = R() < .5 ? 'rgba(255,248,230,.18)' : 'rgba(120,85,45,.14)';
+      ctx.fillRect(30 + R() * 960, 1060 + R() * 200, 2 + R() * 3, 2);
+    }
+    ctx.restore();
+    ctx.lineWidth = 2; ctx.lineCap = 'round';
+    for (i = 0; i < 900; i++){
+      var a = R() * Math.PI * 2;
+      var ex = 510 + Math.cos(a) * 480, ey = 1160 + Math.sin(a) * 92;
+      ctx.strokeStyle = R() < .6 ? 'rgba(232,212,175,.8)' : 'rgba(190,155,110,.7)';
+      ctx.beginPath(); ctx.moveTo(ex, ey);
+      ctx.lineTo(ex + Math.cos(a) * (4 + R() * 10) + (R() - .5) * 6, ey + Math.sin(a) * (2 + R() * 6) + (R() - .5) * 4);
+      ctx.stroke();
+    }
+
+    // trunk + metal stand
+    ctx.fillStyle = '#3b2414'; ctx.fillRect(488, 880, 24, 150);
+    ctx.strokeStyle = '#1b130d'; ctx.lineWidth = 9;
+    ctx.beginPath();
+    ctx.moveTo(500, 1010); ctx.lineTo(420, 1045);
+    ctx.moveTo(500, 1010); ctx.lineTo(585, 1048);
+    ctx.moveTo(500, 1010); ctx.lineTo(505, 1062);
+    ctx.stroke();
+  }
+
+  function drawTwig(ctx, x, y, ang, len, R){
+    var c = Math.cos(ang), sn = Math.sin(ang);
+    ctx.beginPath();
+    ctx.moveTo(x, y); ctx.lineTo(x + c * len, y + sn * len);
+    var n = Math.max(4, (len / 3.2) | 0);
+    for (var k = 1; k <= n; k++){
+      var f = k / n, px = x + c * len * f, py = y + sn * len * f, nl = (7 + R() * 3) * (1 - f * 0.35);
+      var a1 = ang - (0.75 + R() * 0.35), a2 = ang + (0.75 + R() * 0.35);
+      ctx.moveTo(px, py); ctx.lineTo(px + Math.cos(a1) * nl, py + Math.sin(a1) * nl);
+      ctx.moveTo(px, py); ctx.lineTo(px + Math.cos(a2) * nl, py + Math.sin(a2) * nl);
+    }
+    ctx.stroke();
+  }
+
+  function needlePass(ctx, R, count, o){
+    ctx.lineWidth = o.lw; ctx.lineCap = 'round';
+    var made = 0, guard = 0;
+    while (made < count && guard++ < count * 8){
+      var y = TOP + (BASE + 12 - TOP) * Math.pow(R(), 0.75);
+      var t = Math.min(1, (y - TOP) / (BASE - TOP));
+      var local = t >= 1 ? 1 : (t * TIERS) % 1;
+      if (o.flare && R() > 0.2 + local * 0.95) continue;
+      var hw = halfW(y);
+      var u = Math.pow(R(), o.edge);
+      var side = R() < 0.5 ? -1 : 1;
+      var x = CX + side * hw * u * 0.97;
+      var out = side > 0 ? 0.3 : Math.PI - 0.3;
+      var ang = Math.PI / 2 + (out - Math.PI / 2) * (0.25 + 0.75 * u) + (R() - 0.5) * 0.7;
+      var len = (14 + R() * 20) * (0.55 + 0.6 * t) + 4;
+      var lim = hw * 1.08 + 8;
+      var ex = x + Math.cos(ang) * len;
+      if (Math.abs(ex - CX) > lim){
+        len = Math.max(6, (lim - Math.abs(x - CX)) / Math.max(0.2, Math.abs(Math.cos(ang))));
+      }
+      var h = o.h + (R() - 0.5) * o.hv;
+      var l = o.l + R() * o.lv + ((CX - x) / HALF) * o.side + local * o.tierL;
+      var sat = o.sat;
+      if (o.warm && R() < 0.12){ h = 75; sat = 40; l += 6; }
+      ctx.strokeStyle = 'hsl(' + h.toFixed(1) + ',' + sat + '%,' + Math.max(3, l).toFixed(1) + '%)';
+      drawTwig(ctx, x, y, ang, len, R);
+      made++;
+    }
+  }
+
+  function drawGarland(ctx, R){
+    var pal = ['#c4531c', '#e07a2a', '#f29a45', '#a8401a', '#ffc078', '#d9662a', '#b8471d'];
+    ctx.lineCap = 'round';
+    for (var g = 0; g < 5; g++){
+      var ya = TOP + 105 + g * 140, dir = g % 2 ? 1 : -1, drop = 55 + g * 10;
+      for (var pass = 0; pass < 2; pass++){
+        ctx.lineWidth = pass ? 1.3 : 2;
+        var n = 650 + g * 130;
+        for (var i = 0; i < n; i++){
+          var s = R();
+          var y0 = ya + drop * s + 24 * Math.sin(Math.PI * s);
+          var x0 = CX + dir * (2 * s - 1) * halfW(y0) * 0.96;
+          var ox = x0 + (R() - .5) * 18, oy = y0 + (R() - .5) * 15;
+          var a = R() * Math.PI * 2, l = 4 + R() * 8;
+          ctx.strokeStyle = pass ? pal[(R() * pal.length) | 0] : 'rgba(95,28,6,.75)';
+          ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ox + Math.cos(a) * l, oy + Math.sin(a) * l); ctx.stroke();
+        }
+      }
+      ctx.fillStyle = '#ffe6b8';
+      for (i = 0; i < 140; i++){
+        s = R();
+        y0 = ya + drop * s + 24 * Math.sin(Math.PI * s);
+        x0 = CX + dir * (2 * s - 1) * halfW(y0) * 0.96;
+        ctx.fillRect(x0 + (R() - .5) * 16, y0 + (R() - .5) * 13, 1.8, 1.8);
+      }
+    }
+  }
+
+  var BAUBLE_PAL = [
+    ['#ff9a8f', '#d32f2f', '#5e0c0d'],
+    ['#fff1b8', '#d8a646', '#6e4810'],
+    ['#a8f3f3', '#1d8a96', '#0a3540'],
+    ['#ffb8dc', '#c2185b', '#4f0a28'],
+    ['#ffffff', '#c3ccd3', '#4b5560'],
+    ['#ff9a8f', '#c62828', '#5e0c0d']
+  ];
+
+  function drawBauble(ctx, b){
+    var x = b.x, y = b.y, r = b.r, p = b.p, g;
+    ctx.strokeStyle = 'rgba(230,200,130,.85)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(x, y - r - 12); ctx.lineTo(x, y - r - 2); ctx.stroke();
+    ctx.fillStyle = 'rgba(0,10,0,.35)';
+    ctx.beginPath(); ctx.arc(x + 3, y + 5, r, 0, Math.PI * 2); ctx.fill();
+    g = ctx.createRadialGradient(x - r * .35, y - r * .4, r * .08, x, y, r);
+    g.addColorStop(0, p[0]); g.addColorStop(.45, p[1]); g.addColorStop(1, p[2]);
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,190,110,.3)';
+    ctx.beginPath(); ctx.arc(x + r * .38, y + r * .45, r * .26, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.85)';
+    ctx.beginPath(); ctx.ellipse(x - r * .38, y - r * .42, r * .22, r * .12, -0.6, 0, Math.PI * 2); ctx.fill();
+    g = ctx.createLinearGradient(x - r * .3, 0, x + r * .3, 0);
+    g.addColorStop(0, '#8a6420'); g.addColorStop(.5, '#f3d488'); g.addColorStop(1, '#8a6420');
+    ctx.fillStyle = g; ctx.fillRect(x - r * .28, y - r - 5, r * .56, 7);
+  }
+
+  function drawBow(ctx, x, y, k){
+    ctx.save(); ctx.translate(x, y); ctx.scale(k, k);
+    var g = ctx.createLinearGradient(-22, -14, 22, 14);
+    g.addColorStop(0, '#ef5046'); g.addColorStop(.5, '#b71c1c'); g.addColorStop(1, '#7a0f0f');
+    ctx.fillStyle = g; ctx.strokeStyle = '#5a0a0a'; ctx.lineWidth = 0.9;
+    for (var sd = -1; sd <= 1; sd += 2){
+      ctx.save(); ctx.scale(sd, 1);
+      ctx.beginPath(); ctx.moveTo(-1, 1); ctx.lineTo(-12, 26); ctx.lineTo(-7, 23); ctx.lineTo(-4, 28); ctx.lineTo(2, 2); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.bezierCurveTo(-8, -17, -27, -15, -25, -2); ctx.bezierCurveTo(-23, 7, -8, 5, 0, 0); ctx.fill(); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.fillStyle = '#c62828'; ctx.beginPath(); ctx.ellipse(0, 0, 5, 4.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawStar(ctx, s, x, y, R1, R2){
+    ctx.save();
+    ctx.beginPath();
+    for (var i = 0; i < 10; i++){
+      var r = i % 2 ? R2 : R1, a = -Math.PI / 2 + i * Math.PI / 5;
+      ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+    }
+    ctx.closePath();
+    var g = ctx.createLinearGradient(x - R1, y - R1, x + R1, y + R1);
+    g.addColorStop(0, '#fff6c2'); g.addColorStop(.45, '#e9bd4a'); g.addColorStop(1, '#9c6a17');
+    ctx.shadowColor = 'rgba(255,215,110,.95)'; ctx.shadowBlur = 30 * s;
+    ctx.fillStyle = g; ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#87590f'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawScene(ctx, s){
+    var R = rng(20261225);
+    drawRoom(ctx, s, R);
+
+    // dark silhouette
+    treePath(ctx, 0.93);
+    ctx.fillStyle = '#0c2113'; ctx.fill();
+
+    needlePass(ctx, R, 4600, { lw:1.6, edge:1.0, h:145, hv:10, sat:42, l:7,  lv:6,  side:1, tierL:0 });
+    needlePass(ctx, R, 5200, { lw:1.45, edge:.7, h:136, hv:14, sat:38, l:15, lv:9,  side:3, tierL:4 });
+
+    // shadow under each tier
+    ctx.save();
+    treePath(ctx, 1.12); ctx.clip();
+    for (var k = 1; k < TIERS; k++){
+      var yk = TOP + (BASE - TOP) * k / TIERS;
+      var g = ctx.createLinearGradient(0, yk - 6, 0, yk + 48);
+      g.addColorStop(0, 'rgba(0,12,2,.5)'); g.addColorStop(1, 'rgba(0,12,2,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, yk - 6, LW, 54);
+    }
+    ctx.restore();
+
+    drawGarland(ctx, R);
+
+    // ornaments (avoid hanging gift spots)
+    var avoid = GIFTS.filter(function(gf){ return gf.kind === 'hang'; })
+      .map(function(gf){ return { x:gf.x * 10, y:gf.y * 12.5 + 45 }; });
+    var baubles = [], tries = 0;
+    while (baubles.length < 24 && tries++ < 3000){
+      var y = TOP + 70 + R() * (BASE - TOP - 90);
+      var x = CX + (R() * 2 - 1) * halfW(y) * 0.8;
+      var r = 11 + R() * 9 * (0.5 + (y - TOP) / (BASE - TOP));
+      var ok = true;
+      for (var i = 0; i < baubles.length && ok; i++){ if (Math.hypot(baubles[i].x - x, baubles[i].y - y) < 64) ok = false; }
+      for (i = 0; i < avoid.length && ok; i++){ if (Math.hypot(avoid[i].x - x, avoid[i].y - y) < 80) ok = false; }
+      if (ok) baubles.push({ x:x, y:y, r:r, p:BAUBLE_PAL[baubles.length % BAUBLE_PAL.length], front:R() < .6 });
+    }
+    baubles.forEach(function(b){ if (!b.front) drawBauble(ctx, b); });
+
+    needlePass(ctx, R, 2900, { lw:1.3, edge:.45, flare:true, warm:true, h:112, hv:26, sat:34, l:25, lv:12, side:5, tierL:6 });
+
+    baubles.forEach(function(b){ if (b.front) drawBauble(ctx, b); });
+
+    // red bows on branches
+    var bows = 0; tries = 0;
+    while (bows < 10 && tries++ < 2000){
+      y = TOP + 90 + R() * (BASE - TOP - 120);
+      x = CX + (R() * 2 - 1) * halfW(y) * 0.88;
+      ok = true;
+      for (i = 0; i < baubles.length && ok; i++){ if (Math.hypot(baubles[i].x - x, baubles[i].y - y) < 52) ok = false; }
+      for (i = 0; i < avoid.length && ok; i++){ if (Math.hypot(avoid[i].x - x, avoid[i].y - y) < 75) ok = false; }
+      if (ok){ drawBow(ctx, x, y, 0.85 + R() * 0.45); bows++; baubles.push({ x:x, y:y }); }
+    }
+
+    // warm light wash
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    g = ctx.createRadialGradient(CX, 560, 20, CX, 560, 420);
+    g.addColorStop(0, 'rgba(255,150,50,.10)'); g.addColorStop(1, 'rgba(255,150,50,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, LW, LH);
+    ctx.restore();
+
+    drawBow(ctx, CX, TOP + 18, 1.3);
+    drawStar(ctx, s, CX, TOP - 52, 52, 22);
+  }
+
+  /* ---------- twinkling lights ---------- */
+  function sprite(size, stops){
+    var c = document.createElement('canvas'); c.width = c.height = size;
+    var x = c.getContext('2d'), g = x.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    stops.forEach(function(st){ g.addColorStop(st[0], st[1]); });
+    x.fillStyle = g; x.fillRect(0, 0, size, size);
+    return c;
+  }
+  var GLOW = sprite(64, [[0, 'rgba(255,238,195,1)'], [.18, 'rgba(255,205,115,.75)'], [.45, 'rgba(255,160,60,.22)'], [1, 'rgba(255,140,40,0)']]);
+  var CORE = sprite(16, [[0, 'rgba(255,255,245,1)'], [.5, 'rgba(255,240,200,.9)'], [1, 'rgba(255,230,180,0)']]);
+
+  var LIGHTS = (function(){
+    var R = rng(777), L = [], i, y;
+    for (i = 0; i < 125; i++){
+      y = TOP + 25 + (BASE - TOP - 10) * Math.pow(R(), 0.8);
+      L.push({ x:CX + (R() * 2 - 1) * halfW(y) * 0.93, y:y, sz:26 + R() * 16, ph:R() * 6.28, sp:.6 + R() * 1.6 });
+    }
+    [22, 54, 88].forEach(function(cx){
+      for (y = 8; y < 1020; y += 34) L.push({ x:cx + (R() - .5) * 8, y:y + R() * 10, sz:22, ph:R() * 6.28, sp:.5 + R() });
+    });
+    for (var x = 12; x < LW; x += 30) L.push({ x:x, y:1054 + Math.sin(x / 55) * 5, sz:26, ph:R() * 6.28, sp:.5 + R() });
+    L.push({ x:CX, y:TOP - 52, sz:260, ph:0, sp:.5, big:true });
+    return L;
+  })();
+
+  var stage = document.getElementById('stage');
+  var tc = document.getElementById('treeCanvas'), lc = document.getElementById('lightCanvas');
+  var tctx = tc.getContext('2d'), lctx = lc.getContext('2d');
+  var scale = 1, lastW = 0;
+
+  function setup(){
+    var w = stage.clientWidth;
+    if (!w || w === lastW) return;
+    lastW = w;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    tc.width = lc.width = Math.round(w * dpr);
+    tc.height = lc.height = Math.round(w * dpr * LH / LW);
+    scale = tc.width / LW;
+    tctx.setTransform(scale, 0, 0, scale, 0, 0);
+    drawScene(tctx, scale);
+    drawLights(performance.now());
+  }
+
+  function drawLights(t){
+    lctx.setTransform(1, 0, 0, 1, 0, 0);
+    lctx.clearRect(0, 0, lc.width, lc.height);
+    lctx.setTransform(scale, 0, 0, scale, 0, 0);
+    lctx.globalCompositeOperation = 'lighter';
+    for (var i = 0; i < LIGHTS.length; i++){
+      var l = LIGHTS[i];
+      var a = reduceMotion ? .85 : .55 + .45 * Math.sin(t * .002 * l.sp + l.ph);
+      lctx.globalAlpha = a * (l.big ? .5 : .8);
+      lctx.drawImage(GLOW, l.x - l.sz / 2, l.y - l.sz / 2, l.sz, l.sz);
+      if (!l.big){
+        lctx.globalAlpha = .55 + .45 * a;
+        lctx.drawImage(CORE, l.x - 4, l.y - 4, 8, 8);
+      }
+    }
+    lctx.globalAlpha = 1;
+  }
+
+  var lastFrame = 0;
+  function loop(t){
+    if (t - lastFrame > 40){ drawLights(t); lastFrame = t; }
+    requestAnimationFrame(loop);
+  }
+
+  /* =========================================================
+     礼物盒（SVG）
+     ========================================================= */
+  function giftSVG(i, p, H, hang){
+    var id = 'gf' + i, y0 = hang ? -32 : 0;
+    var vb = '0 ' + y0 + ' 100 ' + (H - y0);
+    var pat = '';
+    if (p.pattern === 'stripes'){
+      pat = '<pattern id="' + id + 'p" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="3.2" height="9" fill="' + p.pc + '" opacity=".55"/></pattern>';
+    } else if (p.pattern === 'dots'){
+      pat = '<pattern id="' + id + 'p" width="10" height="10" patternUnits="userSpaceOnUse"><circle cx="3" cy="3" r="1.3" fill="' + p.pc + '"/><circle cx="8" cy="8" r="1.3" fill="' + p.pc + '"/></pattern>';
+    }
+    var bodyH = H - 43;
+    var defs =
+      '<defs>' +
+        '<linearGradient id="' + id + 'f" x1="0" x2="1"><stop offset="0" stop-color="' + p.f1 + '"/><stop offset="1" stop-color="' + p.f2 + '"/></linearGradient>' +
+        '<linearGradient id="' + id + 'l" x1="0" x2="1"><stop offset="0" stop-color="' + p.l1 + '"/><stop offset="1" stop-color="' + p.l2 + '"/></linearGradient>' +
+        '<linearGradient id="' + id + 'r" x1="0" x2="1"><stop offset="0" stop-color="' + p.rd + '"/><stop offset=".3" stop-color="' + p.r + '"/><stop offset=".7" stop-color="' + p.r + '"/><stop offset="1" stop-color="' + p.rd + '"/></linearGradient>' +
+        '<linearGradient id="' + id + 'v" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#000" stop-opacity=".25"/></linearGradient>' +
+        pat +
+      '</defs>';
+
+    var body =
+      '<svg class="g-body" viewBox="' + vb + '" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' + defs +
+        (hang ? '<line x1="50" y1="-32" x2="50" y2="24" stroke="#ecd18e" stroke-width="1.3"/>' : '') +
+        '<rect x="6" y="42" width="88" height="' + bodyH + '" rx="1.5" fill="url(#' + id + 'f)"/>' +
+        (pat ? '<rect x="6" y="42" width="88" height="' + bodyH + '" fill="url(#' + id + 'p)"/>' : '') +
+        '<rect x="6" y="42" width="88" height="' + bodyH + '" fill="url(#' + id + 'v)"/>' +
+        '<rect x="45" y="42" width="10" height="' + bodyH + '" fill="url(#' + id + 'r)"/>' +
+        '<rect x="6" y="42" width="88" height="5" fill="#000" opacity=".22"/>' +
+        '<rect x="6" y="' + (H - 2.5) + '" width="88" height="1.5" fill="#000" opacity=".25"/>' +
+      '</svg>';
+
+    function xl(y){ return 2 + (30 - y) / 12 * 10; }
+    var a = xl(26.2), b = xl(22.6);
+    var lid =
+      '<svg class="g-lid" viewBox="' + vb + '" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
+        '<polygon points="2,30 98,30 88,18 12,18" fill="' + p.top + '"/>' +
+        '<polygon points="' + a + ',26.2 ' + (100 - a) + ',26.2 ' + (100 - b) + ',22.6 ' + b + ',22.6" fill="' + p.r + '"/>' +
+        '<polygon points="45,30 55,30 54,18 46,18" fill="' + p.r + '"/>' +
+        '<rect x="2" y="30" width="96" height="12" rx="1" fill="url(#' + id + 'l)"/>' +
+        (pat ? '<rect x="2" y="30" width="96" height="12" fill="url(#' + id + 'p)"/>' : '') +
+        '<rect x="45" y="30" width="10" height="12" fill="url(#' + id + 'r)"/>' +
+        '<rect x="2" y="30" width="96" height="1" fill="#fff" opacity=".4"/>' +
+        '<g stroke="' + p.rd + '" stroke-width=".8" stroke-linejoin="round">' +
+          '<path d="M49 25 L41 39 L44.5 37.5 L46 41 L51 26Z" fill="' + p.r + '"/>' +
+          '<path d="M51 25 L59 39 L55.5 37.5 L54 41 L49 26Z" fill="' + p.r + '"/>' +
+          '<path d="M50 24 C40 7 25 9 29 20 C31 27 42 27 50 24Z" fill="' + p.r + '"/>' +
+          '<path d="M50 24 C60 7 75 9 71 20 C69 27 58 27 50 24Z" fill="' + p.r + '"/>' +
+          '<path d="M50 24 C42 14 34 14 34.5 20 C36 24 44 25.5 50 24Z" fill="' + p.rd + '" opacity=".45" stroke="none"/>' +
+          '<path d="M50 24 C58 14 66 14 65.5 20 C64 24 56 25.5 50 24Z" fill="' + p.rd + '" opacity=".45" stroke="none"/>' +
+          '<ellipse cx="50" cy="24" rx="4.6" ry="3.8" fill="' + p.r + '"/>' +
+        '</g>' +
+      '</svg>';
+    return { body:body, lid:lid, ratio:100 / (H - y0) };
+  }
+
+  var giftEls = GIFTS.map(function(cfg, i){
+    var p = PAPERS[cfg.paper] || PAPERS.kraft;
+    var hang = cfg.kind === 'hang';
+    var svg = giftSVG(i, p, cfg.h, hang);
+    var btn = document.createElement('button');
+    btn.className = 'gift ' + cfg.kind;
+    btn.type = 'button';
+    btn.setAttribute('aria-label', '打开礼物 ' + (i + 1));
+    btn.style.left = cfg.x + '%';
+    btn.style.top = (hang ? cfg.y : cfg.b) + '%';
+    btn.style.width = cfg.w + '%';
+    btn.style.aspectRatio = String(svg.ratio);
+    if (!hang) btn.style.zIndex = String(5 + Math.round(cfg.b));
+    btn.innerHTML =
+      '<span class="g-sway">' +
+        (hang ? '' : '<span class="g-shadow"></span>') +
+        '<span class="g-inner">' + svg.body + '<span class="g-glow"></span>' + svg.lid + '</span>' +
+      '</span>';
+    stage.appendChild(btn);
+    return btn;
+  });
+
+  /* =========================================================
+     抽奖逻辑
+     ========================================================= */
+  var status = document.getElementById('status');
+  var againBtn = document.getElementById('again');
+  var modal = document.getElementById('modal');
+  var busy = false, pickedEl = null, current = null;
+
+  function pickVoucher(){
+    var total = VOUCHERS.reduce(function(s, v){ return s + (v.weight || 1); }, 0);
+    var r = Math.random() * total;
+    for (var i = 0; i < VOUCHERS.length; i++){ r -= (VOUCHERS[i].weight || 1); if (r <= 0) return VOUCHERS[i]; }
+    return VOUCHERS[VOUCHERS.length - 1];
+  }
+  function showModal(){
+    var v = current.v;
+    document.getElementById('vName').textContent = v.nameCn;
+    document.getElementById('vNameEn').textContent = v.nameEn;
+    document.getElementById('vBadge').textContent = v.badge;
+    var ph = document.getElementById('vPhoto');
+    ph.textContent = v.emoji;
+    if (v.img){
+      var img = new Image();
+      img.alt = '';
+      img.onload = function(){ ph.textContent = ''; ph.appendChild(img); };
+      img.src = v.img;
+    }
+    modal.hidden = false;
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ modal.classList.add('show'); }); });
+    setTimeout(function(){ document.getElementById('vOk').focus(); }, 300);
+  }
+  function hideModal(){
+    modal.classList.remove('show');
+    setTimeout(function(){ modal.hidden = true; }, 300);
+    if (pickedEl){ pickedEl.classList.add('settled'); }
+    if (current){
+      status.textContent = '你抽中了：' + current.v.nameCn + ' · 点礼物可再看兑换券';
+    }
+    againBtn.classList.add('show');
+  }
+
+  function openGift(btn){
+    if (busy) return;
+    if (pickedEl){ if (btn === pickedEl) showModal(); return; }
+    busy = true;
+    btn.classList.add('opening');
+    setTimeout(function(){
+      btn.classList.add('open');
+      burst(btn);
+    }, reduceMotion ? 0 : 430);
+    setTimeout(function(){
+      current = { v:pickVoucher() };
+      pickedEl = btn;
+      giftEls.forEach(function(g){ if (g !== btn) g.classList.add('dim'); });
+      status.textContent = '拆开啦！恭喜获得一张圣诞兑换券 🎉';
+      busy = false;
+      showModal();
+    }, reduceMotion ? 300 : 1050);
+  }
+
+  function resetAll(){
+    pickedEl = null; current = null;
+    giftEls.forEach(function(g){ g.classList.remove('open', 'opening', 'dim', 'settled'); });
+    status.textContent = '点一个礼物，拆开看看是什么';
+    againBtn.classList.remove('show');
+  }
+
+  giftEls.forEach(function(g){ g.addEventListener('click', function(){ openGift(g); }); });
+  againBtn.addEventListener('click', resetAll);
+  document.getElementById('vOk').addEventListener('click', hideModal);
+  modal.addEventListener('click', function(e){ if (e.target === modal) hideModal(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !modal.hidden) hideModal(); });
+
+  // 时不时让一个礼物轻轻晃动，提示可以点击
+  if (!reduceMotion){
+    setInterval(function(){
+      if (pickedEl || busy) return;
+      var g = giftEls[(Math.random() * giftEls.length) | 0];
+      g.classList.remove('nudge'); void g.offsetWidth; g.classList.add('nudge');
+      setTimeout(function(){ g.classList.remove('nudge'); }, 900);
+    }, 2400);
+  }
+
+  /* ---------- confetti ---------- */
+  var cf = document.getElementById('confetti'), cctx = cf.getContext('2d'), parts = [], cfRunning = false;
+  function burst(btn){
+    if (reduceMotion) return;
+    var r = btn.getBoundingClientRect();
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cf.width = innerWidth * dpr; cf.height = innerHeight * dpr;
+    cctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    var cols = ['#C9423F', '#D8A646', '#3E7A5B', '#FBF4E4', '#f29a45'];
+    for (var i = 0; i < 90; i++){
+      var a = -Math.PI / 2 + (Math.random() - .5) * 2.2, sp = 4 + Math.random() * 7;
+      parts.push({ x:r.left + r.width / 2, y:r.top + r.height * .35, vx:Math.cos(a) * sp, vy:Math.sin(a) * sp,
+        w:4 + Math.random() * 5, h:6 + Math.random() * 6, rot:Math.random() * 6, vr:(Math.random() - .5) * .4,
+        c:cols[(Math.random() * cols.length) | 0], life:0 });
+    }
+    if (!cfRunning){ cfRunning = true; requestAnimationFrame(stepConfetti); }
+  }
+  function stepConfetti(){
+    cctx.clearRect(0, 0, innerWidth, innerHeight);
+    parts = parts.filter(function(p){ return p.life < 110; });
+    parts.forEach(function(p){
+      p.life++; p.vy += .22; p.vx *= .985; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+      cctx.save(); cctx.globalAlpha = Math.max(0, 1 - p.life / 110);
+      cctx.translate(p.x, p.y); cctx.rotate(p.rot); cctx.fillStyle = p.c;
+      cctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h * Math.abs(Math.cos(p.rot * 2)));
+      cctx.restore();
+    });
+    if (parts.length) requestAnimationFrame(stepConfetti);
+    else { cfRunning = false; cctx.clearRect(0, 0, innerWidth, innerHeight); }
+  }
+
+  /* ---------- snow ---------- */
+  (function makeSnow(){
+    if (reduceMotion) return;
+    var host = document.getElementById('snow');
+    for (var i = 0; i < 24; i++){
+      var f = document.createElement('span');
+      f.className = 'flake'; f.textContent = '❄';
+      f.style.left = (Math.random() * 100) + 'vw';
+      f.style.fontSize = (9 + Math.random() * 12) + 'px';
+      f.style.animationDuration = (9 + Math.random() * 9) + 's';
+      f.style.animationDelay = (-Math.random() * 12) + 's';
+      f.style.opacity = (0.3 + Math.random() * 0.4).toFixed(2);
+      host.appendChild(f);
+    }
+  })();
+
+  setup();
+  var rt;
+  window.addEventListener('resize', function(){ clearTimeout(rt); rt = setTimeout(setup, 150); });
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
